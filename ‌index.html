@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transit TAT Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --border:#e2e4e8; --border-strong:#c9cdd4;
+    --text:#1b1e24; --text-2:#5b6270; --text-muted:#8a8f99;
+    --accent:#2f6fed; --accent-bg:#eaf0fe;
+    --danger:#c0392b; --danger-bg:#fdecea;
+    --warn:#b8860b; --warn-bg:#fdf3d8;
+    --ok:#1e8e5a; --ok-bg:#e6f6ee;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;}
+  .sub{color:var(--text-2);font-size:13px;margin:0 0 20px;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px; margin-bottom:18px;
+  }
+  .card h2{font-size:14px;font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+  .dropzone{
+    border:1.5px dashed var(--border-strong); border-radius:var(--radius);
+    padding:26px; text-align:center; color:var(--text-2); font-size:13px;
+    cursor:pointer; transition:background .15s,border-color .15s;
+  }
+  .dropzone:hover, .dropzone.drag{background:var(--accent-bg);border-color:var(--accent);}
+  .dropzone b{color:var(--text);}
+  input[type=file]{display:none;}
+  button{
+    font-family:inherit; font-size:13px; font-weight:600; padding:8px 14px;
+    border-radius:8px; border:1px solid var(--border-strong); background:#fff; color:var(--text);
+    cursor:pointer;
+  }
+  button:hover{background:#f0f1f3;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  button.primary:hover{background:#255bc4;}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  .pill{
+    display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;
+    padding:2px 9px;border-radius:999px;
+  }
+  .pill.ded{background:#eaf0fe;color:#2f4fb0;}
+  .pill.pool{background:#fdf3d8;color:#8a6207;}
+  .pill.mkt{background:#e6f6ee;color:#1e8e5a;}
+  .pill.unk{background:#eee;color:#666;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+  th{
+    color:var(--text-2);font-weight:600;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.02em; position:sticky; top:0; background:var(--card); cursor:pointer;
+    user-select:none;
+  }
+  th:hover{color:var(--text);}
+  tr:hover td{background:#fafbfc;}
+  .tbl-scroll{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;}
+  .tat-ok{color:var(--ok);font-weight:600;}
+  .tat-warn{color:var(--warn);font-weight:600;}
+  .tat-bad{color:var(--danger);font-weight:600;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .stat{background:#fafbfc;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .stat .lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
+  .stat .val{font-size:20px;font-weight:700;margin-top:2px;}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);}
+  .tab{
+    padding:9px 14px;font-size:13px;font-weight:600;color:var(--text-2);cursor:pointer;
+    border-bottom:2px solid transparent;
+  }
+  .tab.active{color:var(--accent);border-color:var(--accent);}
+  .view{display:none;}
+  .view.active{display:block;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  select,input[type=text],input[type=search]{
+    font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;
+    border:1px solid var(--border-strong);background:#fff;color:var(--text);
+  }
+  .msg{font-size:13px;padding:10px 14px;border-radius:8px;margin-bottom:14px;}
+  .msg.err{background:var(--danger-bg);color:var(--danger);}
+  .msg.warn{background:var(--warn-bg);color:#8a6207;}
+  .msg.ok{background:var(--ok-bg);color:var(--ok);}
+  .small{font-size:12px;color:var(--text-muted);}
+  .master-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:6px;align-items:center;}
+  .link{color:var(--accent);cursor:pointer;font-size:12.5px;font-weight:600;}
+  .badge-count{background:#eee;color:#555;border-radius:999px;font-size:11px;padding:1px 7px;margin-left:6px;}
+  .hidden{display:none;}
+  .bucket-card{background:#fafbfc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;}
+  .bucket-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;}
+  .bucket-row{display:grid;grid-template-columns:110px 1fr 90px;gap:10px;align-items:center;padding:3px 0;font-size:12.5px;cursor:pointer;border-radius:6px;}
+  .bucket-row:hover{background:#f0f1f3;}
+  .bucket-row.active{background:var(--accent-bg);}
+  .bucket-row.active .bucket-label{color:var(--accent);font-weight:600;}
+  .bucket-bar-wrap{background:#eceef1;border-radius:5px;height:9px;overflow:hidden;}
+  .bucket-bar{background:var(--accent);height:100%;border-radius:5px;}
+  .bucket-count{text-align:right;font-weight:600;}
+  footer{text-align:center;color:var(--text-muted);font-size:11.5px;margin-top:20px;}
+  .req-cols{background:#fafbfc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:14px;}
+  .req-cols-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
+  .req-cols-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 14px;font-size:13px;}
+  .req-must{background:var(--danger-bg);color:var(--danger);margin-right:6px;}
+  .req-opt{background:#eee;color:#666;margin-right:6px;}
+  .msel{position:relative;font-size:13px;}
+  .msel-btn{
+    font-family:inherit;font-size:13px;padding:7px 12px;border-radius:8px;
+    border:1px solid var(--border-strong);background:#fff;color:var(--text);
+    cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .msel-btn:hover{background:#f0f1f3;}
+  .msel-btn .cnt{background:var(--accent);color:#fff;border-radius:999px;font-size:11px;font-weight:700;padding:1px 6px;}
+  .msel-btn .chev{font-size:10px;color:var(--text-muted);}
+  .msel-panel{
+    display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:200px;
+    background:#fff;border:1px solid var(--border-strong);border-radius:8px;
+    box-shadow:0 4px 14px rgba(0,0,0,.1);padding:6px;max-height:260px;overflow:auto;
+  }
+  .msel.open .msel-panel{display:block;}
+  .msel-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;}
+  .msel-opt:hover{background:#f0f1f3;}
+  .msel-opt input{margin:0;}
+  .msel-actions{display:flex;justify-content:space-between;border-top:1px solid var(--border);margin-top:4px;padding-top:6px;}
+  .msel-actions span{font-size:11.5px;color:var(--accent);cursor:pointer;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Transit TAT dashboard</h1>
+  <p class="sub">Upload the Input sheet export &mdash; columns can be in any order, they're matched by header name. Unit, carrier type and TAT are computed the same way as the Excel workbook.</p>
+
+  <div class="card">
+    <h2><i>&#8593;</i> 1. Upload input sheet</h2>
+    <div class="dropzone" id="dropzone">
+      <div><b>Click to choose a file</b> or drag it here</div>
+      <div class="small" style="margin-top:4px;">.xlsx, .xls or .csv &mdash; looks for a sheet/tab that has an "Input"-style header row</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    </div>
+    <div id="uploadMsg"></div>
+    <div class="row" style="margin-top:12px;">
+      <span class="small" id="fileInfo"></span>
+    </div>
+    <div class="req-cols">
+      <div class="req-cols-title">Required column headers</div>
+      <p class="small" style="margin:0 0 8px;">Column order doesn't matter and extra columns are ignored &mdash; only the header text is matched. These headers must be present:</p>
+      <div class="req-cols-grid">
+        <div><span class="pill unk req-must">must have</span> Load ID</div>
+        <div><span class="pill unk req-must">must have</span> Shipped Date/Time</div>
+        <div><span class="pill unk req-must">must have</span> Carrier ID</div>
+        <div><span class="pill unk req-must">must have</span> Origin Location ID</div>
+        <div><span class="pill unk req-must">must have</span> Tractor Number</div>
+        <div><span class="pill unk req-must">must have</span> Carrier Name</div>
+        <div><span class="pill unk req-must">must have</span> Destination Location ID</div>
+        <div><span class="pill unk req-must">must have</span> Customer Name</div>
+      </div>
+      <p class="small" style="margin:8px 0 0;">Column order doesn't matter, but each of these headers needs to be present for the report to be complete.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>
+      <i>&#9881;</i> 2. Location &rarr; unit mapping
+      <span class="badge-count" id="masterCount">0 locations</span>
+    </h2>
+    <p class="small" style="margin:0;">Fixed mapping used to derive <b>Unit</b> from the trip's <b>Origin Location ID</b> (same as the Master tab in the workbook).</p>
+    <div id="masterRows" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none;">
+    <h2><i>&#128202;</i> 3. Results</h2>
+    <div class="stat-grid" id="statGrid" style="margin-bottom:16px;"></div>
+
+    <div class="bucket-card">
+      <div class="bucket-title">TAT buckets</div>
+      <div id="bucketGrid"></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-view="transport">Transport level (per trip)</div>
+      <div class="tab" data-view="vehicle">Vehicle level (per tractor)</div>
+      <div class="tab" data-view="pivot">Unit &times; carrier type</div>
+    </div>
+
+    <div class="view active" id="view-transport">
+      <div class="toolbar">
+        <input type="search" id="searchTransport" placeholder="Search tractor, load ID, carrier, customer&hellip;">
+        <div class="msel" id="mselUnit" data-placeholder="All units"></div>
+        <div class="msel" id="mselCarrierName" data-placeholder="All carriers"></div>
+        <div class="msel" id="mselCarrier" data-placeholder="All carrier types"></div>
+        <div class="msel" id="mselBucket" data-placeholder="All TAT buckets"></div>
+        <button id="exportBtn" style="margin-left:auto;">&#8595; export as Excel</button>
+      </div>
+      <div class="tbl-scroll"><table id="transportTable"></table></div>
+    </div>
+
+    <div class="view" id="view-vehicle">
+      <div class="toolbar">
+        <input type="search" id="searchVehicle" placeholder="Search tractor number&hellip;">
+      </div>
+      <div class="tbl-scroll"><table id="vehicleTable"></table></div>
+    </div>
+
+    <div class="view" id="view-pivot">
+      <div class="tbl-scroll"><table id="pivotTable"></table></div>
+    </div>
+  </div>
+
+  <footer>TAT = hours elapsed between the shipped date/time and now (recalculates each time you open this page). Carrier type is read from the last letter of the Carrier ID (D / P / M).</footer>
+</div>
+
+<script>
+const DEFAULT_MASTER = [
+  ['HMM6','Mumbai'],['HMP1','Pune'],['HDNA','Bhiwandi'],['HDP2','Pune'],
+  ['HDN3','Nasik'],['HMY1','Goa'],['HDPV','Pune'],['HMPG','Lote']
+];
+
+const HEADER_ALIASES = {
+  tractor:      ['tractor number','domicile tractor vehicle id','vehicle number','vehicle id'],
+  loadId:       ['load id','load  id'],
+  carrierName:  ['carrier name'],
+  origin:       ['origin location id','origin location'],
+  destination:  ['destination location id','destination location'],
+  customer:     ['customer name'],
+  shipped:      ['shipped date/time','shipped date','shipped datetime'],
+  carrierId:    ['carrier id'],
+  status:       ['operational status']
+};
+
+const masterMap = DEFAULT_MASTER.map(r=>r.slice());
+let rawRows = [];
+let processedRows = [];
+let sortState = {key:'tat', dir:'desc'};
+
+function normalizeHeader(h){
+  return String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function findColumn(headers, aliasKey){
+  const aliases = HEADER_ALIASES[aliasKey].map(normalizeHeader);
+  const normed = headers.map(normalizeHeader);
+  for(const alias of aliases){
+    let idx = normed.indexOf(alias);
+    if(idx !== -1) return idx;
+  }
+  for(let i=0;i<normed.length;i++){
+    for(const alias of aliases){
+      if(normed[i].includes(alias)) return i;
+    }
+  }
+  return -1;
+}
+
+function excelSerialToDate(v){
+  if(v instanceof Date) return v;
+  if(typeof v === 'number'){
+    const utcDays = Math.floor(v - 25569);
+    const utcValue = utcDays * 86400;
+    const dateInfo = new Date(utcValue * 1000);
+    const fractionalDay = v - Math.floor(v) + 0.0000001;
+    let totalSeconds = Math.floor(86400 * fractionalDay);
+    const seconds = totalSeconds % 60;
+    totalSeconds -= seconds;
+    const hours = Math.floor(totalSeconds / (60*60));
+    const minutes = Math.floor(totalSeconds / 60) % 60;
+    return new Date(dateInfo.getFullYear(), dateInfo.getMonth(), dateInfo.getDate(), hours, minutes, seconds);
+  }
+  if(typeof v === 'string'){
+    const d = new Date(v);
+    if(!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function carrierTypeFromId(carrierId){
+  if(!carrierId) return null;
+  const trimmed = String(carrierId).trim();
+  const last = trimmed.charAt(trimmed.length-1).toUpperCase();
+  if(last === 'D') return 'Dedicated';
+  if(last === 'P') return 'Pool';
+  if(last === 'M') return 'Market';
+  return null;
+}
+
+const CARRIER_NAME_STOPWORDS = new Set([
+  'DEDICATED','MARKET','POOL','DED','MKT','CNG','LNG','EV',
+  'MAHARASHTRA','MH','MP','GJ','GUJARAT','KA','KARNATAKA','TN','TAMILNADU',
+  'MUMBAI','PUNE','BHIWANDI','NASIK','NASHIK','GOA','LOTE'
+]);
+function shortenCarrierName(name){
+  if(!name) return '';
+  const words = String(name).trim().replace(/\s+/g,' ').split(' ');
+  while(words.length > 1 && CARRIER_NAME_STOPWORDS.has(words[words.length-1].toUpperCase())){
+    words.pop();
+  }
+  return words.join(' ');
+}
+
+function unitFromOrigin(origin){
+  if(!origin) return null;
+  const o = String(origin).trim().toLowerCase();
+  const hit = masterMap.find(r => String(r[0]).trim().toLowerCase() === o);
+  return hit ? hit[1] : null;
+}
+
+function readWorkbookSheet(wb){
+  let bestSheet = null, bestScore = -1, bestHeaders = null, bestHeaderRowIdx = 0;
+  wb.SheetNames.forEach(name=>{
+    const ws = wb.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+    for(let r=0;r<Math.min(rows.length,5);r++){
+      const headerRow = rows[r] || [];
+      let score = 0;
+      Object.keys(HEADER_ALIASES).forEach(key=>{
+        if(findColumn(headerRow, key) !== -1) score++;
+      });
+      if(score > bestScore){
+        bestScore = score; bestSheet = rows; bestHeaders = headerRow; bestHeaderRowIdx = r;
+      }
+    }
+  });
+  return {rows:bestSheet, headers:bestHeaders, headerRowIdx:bestHeaderRowIdx, score:bestScore};
+}
+
+function processFile(file){
+  const msgEl = document.getElementById('uploadMsg');
+  msgEl.innerHTML = '';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:false});
+      const {rows, headers, headerRowIdx, score} = readWorkbookSheet(wb);
+      if(!rows || score < 4){
+        msgEl.innerHTML = '<div class="msg err">Couldn\'t confidently find the input columns (tractor number, load ID, carrier name, origin, destination, customer, shipped date, carrier ID). Check the file has these columns and try again.</div>';
+        return;
+      }
+      const colTractor = findColumn(headers,'tractor');
+      const colLoad = findColumn(headers,'loadId');
+      const colCarrierName = findColumn(headers,'carrierName');
+      const colOrigin = findColumn(headers,'origin');
+      const colDest = findColumn(headers,'destination');
+      const colCustomer = findColumn(headers,'customer');
+      const colShipped = findColumn(headers,'shipped');
+      const colCarrierId = findColumn(headers,'carrierId');
+      const colStatus = findColumn(headers,'status');
+
+      const dataRows = rows.slice(headerRowIdx+1).filter(r => r && r[colLoad] !== null && r[colLoad] !== undefined && r[colLoad] !== '');
+
+      const now = new Date();
+      const out = [];
+      let unmappedUnits = new Set();
+      let unknownCarrierTypes = 0;
+
+      dataRows.forEach(r=>{
+        const tractor = colTractor!==-1 ? r[colTractor] : null;
+        const loadId = colLoad!==-1 ? r[colLoad] : null;
+        const carrierName = colCarrierName!==-1 ? r[colCarrierName] : null;
+        const origin = colOrigin!==-1 ? r[colOrigin] : null;
+        const destination = colDest!==-1 ? r[colDest] : null;
+        const customer = colCustomer!==-1 ? r[colCustomer] : null;
+        const shippedRaw = colShipped!==-1 ? r[colShipped] : null;
+        const carrierId = colCarrierId!==-1 ? r[colCarrierId] : null;
+        const status = colStatus!==-1 ? r[colStatus] : null;
+
+        const shippedDate = excelSerialToDate(shippedRaw);
+        const tatHours = shippedDate ? (now.getTime() - shippedDate.getTime())/36e5 : null;
+        const carrierType = carrierTypeFromId(carrierId);
+        if(!carrierType) unknownCarrierTypes++;
+        const unit = unitFromOrigin(origin);
+        if(origin && !unit) unmappedUnits.add(origin);
+
+        out.push({
+          tractor: tractor ?? '',
+          loadId: loadId ?? '',
+          carrierName: carrierName ?? '',
+          carrierNameShort: shortenCarrierName(carrierName),
+          origin: origin ?? '',
+          destination: destination ?? '',
+          customer: customer ?? '',
+          shipped: shippedDate,
+          tat: tatHours,
+          carrierType: carrierType,
+          unit: unit,
+          status: status ?? ''
+        });
+      });
+
+      processedRows = out;
+      let msgs = [];
+      msgs.push(`<div class="msg ok">Loaded ${out.length} trips${wb.SheetNames.length>1 ? ' from the "'+wb.SheetNames[headerRowIdxSheetName(wb, rows)]+'" sheet' : ''}.</div>`);
+      if(unmappedUnits.size){
+        msgs.push(`<div class="msg warn">${unmappedUnits.size} origin location(s) not found in the unit mapping: ${[...unmappedUnits].slice(0,8).join(', ')}${unmappedUnits.size>8?'&hellip;':''}. Add them below so those trips get a unit.</div>`);
+      }
+      if(unknownCarrierTypes){
+        msgs.push(`<div class="msg warn">${unknownCarrierTypes} trip(s) had a Carrier ID that didn't end in D/P/M, so carrier type is blank for those.</div>`);
+      }
+      msgEl.innerHTML = msgs.join('');
+      document.getElementById('fileInfo').textContent = file.name + ' \u2022 ' + (file.size/1024).toFixed(0) + ' KB';
+
+      buildAll();
+    }catch(err){
+      console.error(err);
+      msgEl.innerHTML = '<div class="msg err">Couldn\'t read that file: '+ (err.message||err) +'</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function headerRowIdxSheetName(wb, rows){
+  for(const name of wb.SheetNames){
+    const ws = wb.Sheets[name];
+    const r = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+    if(r === rows || JSON.stringify(r) === JSON.stringify(rows)) return wb.SheetNames.indexOf(name);
+  }
+  return 0;
+}
+
+function fmtTat(h){
+  if(h === null || h === undefined || isNaN(h)) return '&mdash;';
+  const cls = h < 6 ? 'tat-ok' : (h < 24 ? 'tat-warn' : 'tat-bad');
+  return `<span class="${cls}">${h.toFixed(1)} hrs</span>`;
+}
+function fmtDate(d){
+  if(!d) return '&mdash;';
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function pillHtml(type){
+  if(type === 'Dedicated') return '<span class="pill ded">Dedicated</span>';
+  if(type === 'Pool') return '<span class="pill pool">Pool</span>';
+  if(type === 'Market') return '<span class="pill mkt">Market</span>';
+  return '<span class="pill unk">Unknown</span>';
+}
+
+function buildAll(){
+  document.getElementById('resultsCard').style.display = 'block';
+  populateFilterOptions();
+  updateSummary();
+  renderTransportTable();
+  renderVehicleTable();
+  renderPivotTable();
+}
+
+function populateFilterOptions(){
+  const units = [...new Set(processedRows.map(r=>r.unit).filter(Boolean))].sort();
+  const unitOptions = units.map(u=>({value:u, label:u}));
+  const carrierOptions = [{value:'Dedicated',label:'Dedicated'},{value:'Pool',label:'Pool'},{value:'Market',label:'Market'}];
+  const bucketOptions = TAT_BUCKETS.map((b,i)=>({value:String(i), label:b.label}));
+  const carrierNames = [...new Set(processedRows.map(r=>r.carrierNameShort).filter(Boolean))].sort();
+  const carrierNameOptions = carrierNames.map(n=>({value:n, label:n}));
+
+  const validUnits = new Set(units);
+  [...mselState.unit].forEach(v=>{ if(!validUnits.has(v)) mselState.unit.delete(v); });
+  const validNames = new Set(carrierNames);
+  [...mselState.carrierName].forEach(v=>{ if(!validNames.has(v)) mselState.carrierName.delete(v); });
+
+  renderMultiSelect('unit', 'mselUnit', unitOptions, 'All units');
+  renderMultiSelect('carrierName', 'mselCarrierName', carrierNameOptions, 'All carriers');
+  renderMultiSelect('carrier', 'mselCarrier', carrierOptions, 'All carrier types');
+  renderMultiSelect('bucket', 'mselBucket', bucketOptions, 'All TAT buckets');
+}
+
+const mselState = { unit: new Set(), carrier: new Set(), carrierName: new Set(), bucket: new Set() };
+
+function multiSelectButtonHTML(selected, options, placeholder){
+  let btnText;
+  if(selected.size === 0) btnText = placeholder;
+  else if(selected.size === 1){
+    const opt = options.find(o=>o.value === [...selected][0]);
+    btnText = opt ? opt.label : placeholder;
+  } else btnText = selected.size + ' selected';
+  return `<span>${btnText}</span>${selected.size>1?` <span class="cnt">${selected.size}</span>`:''} <span class="chev">&#9662;</span>`;
+}
+
+function renderMultiSelect(key, containerId, options, placeholder){
+  const container = document.getElementById(containerId);
+  const selected = mselState[key];
+  const optsHtml = options.map(o=>`<label class="msel-opt"><input type="checkbox" value="${o.value}" ${selected.has(o.value)?'checked':''}> ${o.label}</label>`).join('')
+    || '<div class="small" style="padding:6px 8px;">No options</div>';
+  container.innerHTML = `<button type="button" class="msel-btn">${multiSelectButtonHTML(selected, options, placeholder)}</button>
+    <div class="msel-panel">
+      ${optsHtml}
+      <div class="msel-actions"><span data-action="all">select all</span><span data-action="clear">clear</span></div>
+    </div>`;
+  const btn = container.querySelector('.msel-btn');
+  const panel = container.querySelector('.msel-panel');
+  panel.addEventListener('click', e=>e.stopPropagation());
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const wasOpen = container.classList.contains('open');
+    document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open'));
+    if(!wasOpen) container.classList.add('open');
+  });
+  const applyChange = ()=>{
+    btn.innerHTML = multiSelectButtonHTML(selected, options, placeholder);
+    renderTransportTable();
+    updateSummary();
+  };
+  container.querySelectorAll('.msel-opt input').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) selected.add(cb.value); else selected.delete(cb.value);
+      applyChange();
+    });
+  });
+  const allBtn = container.querySelector('[data-action="all"]');
+  if(allBtn) allBtn.addEventListener('click', ()=>{
+    options.forEach(o=>selected.add(o.value));
+    container.querySelectorAll('.msel-opt input').forEach(cb=>cb.checked = true);
+    applyChange();
+  });
+  const clearBtn = container.querySelector('[data-action="clear"]');
+  if(clearBtn) clearBtn.addEventListener('click', ()=>{
+    selected.clear();
+    container.querySelectorAll('.msel-opt input').forEach(cb=>cb.checked = false);
+    applyChange();
+  });
+}
+
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open'));
+});
+
+const TAT_BUCKETS = [
+  {label:'0-12 hrs', min:0, max:12},
+  {label:'12-24 hrs', min:12, max:24},
+  {label:'24-36 hrs', min:24, max:36},
+  {label:'36-48 hrs', min:36, max:48},
+  {label:'48-60 hrs', min:48, max:60},
+  {label:'Beyond 60 hrs', min:60, max:Infinity}
+];
+
+function renderStats(rows){
+  const data = rows || getFilteredTransportRows();
+  const total = data.length;
+  const tats = data.map(r=>r.tat).filter(t=>t!==null && !isNaN(t));
+  const avg = tats.length ? (tats.reduce((a,b)=>a+b,0)/tats.length) : 0;
+  const over24 = tats.filter(t=>t>24).length;
+  const vehicles = new Set(data.map(r=>r.tractor).filter(Boolean)).size;
+  const grid = document.getElementById('statGrid');
+  grid.innerHTML = `
+    <div class="stat"><div class="lbl">Total trips</div><div class="val">${total}</div></div>
+    <div class="stat"><div class="lbl">Unique vehicles</div><div class="val">${vehicles}</div></div>
+    <div class="stat"><div class="lbl">Avg TAT</div><div class="val">${avg.toFixed(1)}h</div></div>
+    <div class="stat"><div class="lbl">Trips over 24h</div><div class="val" style="color:var(--danger)">${over24}</div></div>
+  `;
+}
+
+function renderBuckets(rows){
+  const data = rows || getFilteredTransportRows();
+  const counts = TAT_BUCKETS.map(b=>({...b, count:0}));
+  let total = 0;
+  data.forEach(r=>{
+    if(r.tat === null || isNaN(r.tat)) return;
+    total++;
+    for(const b of counts){
+      if(r.tat >= b.min && r.tat < b.max){ b.count++; break; }
+    }
+  });
+  const grid = document.getElementById('bucketGrid');
+  grid.innerHTML = counts.map((b,i)=>{
+    const pct = total ? (b.count/total*100) : 0;
+    const active = mselState.bucket.has(String(i)) ? ' active' : '';
+    return `<div class="bucket-row${active}" data-idx="${i}">
+      <div class="bucket-label">${b.label}</div>
+      <div class="bucket-bar-wrap"><div class="bucket-bar" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="bucket-count">${b.count} <span class="small">(${pct.toFixed(0)}%)</span></div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.bucket-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const idx = row.dataset.idx;
+      if(mselState.bucket.has(idx)) mselState.bucket.delete(idx);
+      else mselState.bucket.add(idx);
+      const bucketOptions = TAT_BUCKETS.map((b,i)=>({value:String(i), label:b.label}));
+      renderMultiSelect('bucket', 'mselBucket', bucketOptions, 'All TAT buckets');
+      renderTransportTable();
+      updateSummary();
+    });
+  });
+}
+
+function updateSummary(){
+  const rows = getFilteredTransportRows();
+  renderStats(rows);
+  renderBuckets(rows);
+}
+
+function getFilteredTransportRows(){
+  const q = document.getElementById('searchTransport').value.trim().toLowerCase();
+  const unitSel = mselState.unit;
+  const carrierSel = mselState.carrier;
+  const carrierNameSel = mselState.carrierName;
+  const bucketSel = mselState.bucket;
+  let rows = processedRows.filter(r=>{
+    if(unitSel.size && !(r.unit && unitSel.has(r.unit))) return false;
+    if(carrierSel.size && !(r.carrierType && carrierSel.has(r.carrierType))) return false;
+    if(carrierNameSel.size && !(r.carrierNameShort && carrierNameSel.has(r.carrierNameShort))) return false;
+    if(bucketSel.size){
+      if(r.tat === null || isNaN(r.tat)) return false;
+      let inAny = false;
+      for(const idx of bucketSel){
+        const b = TAT_BUCKETS[Number(idx)];
+        if(r.tat >= b.min && r.tat < b.max){ inAny = true; break; }
+      }
+      if(!inAny) return false;
+    }
+    if(q){
+      const hay = [r.tractor,r.loadId,r.carrierName,r.carrierNameShort,r.customer,r.origin,r.destination].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  rows.sort((a,b)=>{
+    let av = a[sortState.key], bv = b[sortState.key];
+    if(av === null || av === undefined) av = sortState.key==='tat' ? -Infinity : '';
+    if(bv === null || bv === undefined) bv = sortState.key==='tat' ? -Infinity : '';
+    if(av instanceof Date) av = av.getTime();
+    if(bv instanceof Date) bv = bv.getTime();
+    if(typeof av === 'string') av = av.toLowerCase();
+    if(typeof bv === 'string') bv = bv.toLowerCase();
+    if(av < bv) return sortState.dir==='asc' ? -1 : 1;
+    if(av > bv) return sortState.dir==='asc' ? 1 : -1;
+    return 0;
+  });
+  return rows;
+}
+
+function renderTransportTable(){
+  const rows = getFilteredTransportRows();
+  const cols = [
+    {key:'unit', label:'Unit'},
+    {key:'carrierType', label:'Carrier type'},
+    {key:'tractor', label:'Tractor'},
+    {key:'loadId', label:'Load ID'},
+    {key:'carrierNameShort', label:'Carrier name'},
+    {key:'origin', label:'Origin'},
+    {key:'destination', label:'Destination'},
+    {key:'customer', label:'Customer'},
+    {key:'shipped', label:'Shipped'},
+    {key:'tat', label:'TAT'}
+  ];
+  const thead = '<thead><tr>' + cols.map(c=>{
+    const arrow = sortState.key===c.key ? (sortState.dir==='asc'?' \u2191':' \u2193') : '';
+    return `<th data-key="${c.key}">${c.label}${arrow}</th>`;
+  }).join('') + '</tr></thead>';
+  const tbody = '<tbody>' + rows.map(r=>`<tr>
+    <td>${r.unit || '<span class="small">unmapped</span>'}</td>
+    <td>${pillHtml(r.carrierType)}</td>
+    <td>${r.tractor}</td>
+    <td>${r.loadId}</td>
+    <td title="${r.carrierName}">${r.carrierNameShort}</td>
+    <td>${r.origin}</td>
+    <td>${r.destination}</td>
+    <td>${r.customer}</td>
+    <td>${fmtDate(r.shipped)}</td>
+    <td>${fmtTat(r.tat)}</td>
+  </tr>`).join('') + '</tbody>';
+  document.getElementById('transportTable').innerHTML = thead + tbody;
+  document.getElementById('transportTable').querySelectorAll('th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      if(sortState.key === key) sortState.dir = sortState.dir==='asc'?'desc':'asc';
+      else { sortState.key = key; sortState.dir = 'desc'; }
+      renderTransportTable();
+    });
+  });
+}
+
+function renderVehicleTable(){
+  const q = document.getElementById('searchVehicle').value.trim().toLowerCase();
+  const groups = {};
+  processedRows.forEach(r=>{
+    const key = r.tractor || '(blank)';
+    if(!groups[key]) groups[key] = {tractor:key, unit:r.unit, carrierType:r.carrierType, trips:0, tats:[]};
+    groups[key].trips++;
+    if(r.tat !== null && !isNaN(r.tat)) groups[key].tats.push(r.tat);
+    if(!groups[key].unit && r.unit) groups[key].unit = r.unit;
+  });
+  let rows = Object.values(groups).map(g=>({
+    ...g,
+    maxTat: g.tats.length ? Math.max(...g.tats) : null,
+    avgTat: g.tats.length ? g.tats.reduce((a,b)=>a+b,0)/g.tats.length : null
+  }));
+  if(q) rows = rows.filter(r=>String(r.tractor).toLowerCase().includes(q));
+  rows.sort((a,b)=> (b.maxTat ?? -Infinity) - (a.maxTat ?? -Infinity));
+
+  const thead = `<thead><tr>
+    <th>Tractor / vehicle</th><th>Unit</th><th>Carrier type</th><th>Trips</th><th>Avg TAT</th><th>Max TAT</th>
+  </tr></thead>`;
+  const tbody = '<tbody>' + rows.map(r=>`<tr>
+    <td>${r.tractor}</td>
+    <td>${r.unit || '<span class="small">unmapped</span>'}</td>
+    <td>${pillHtml(r.carrierType)}</td>
+    <td>${r.trips}</td>
+    <td>${fmtTat(r.avgTat)}</td>
+    <td>${fmtTat(r.maxTat)}</td>
+  </tr>`).join('') + '</tbody>';
+  document.getElementById('vehicleTable').innerHTML = thead + tbody;
+}
+
+function renderPivotTable(){
+  const groups = {};
+  processedRows.forEach(r=>{
+    const unit = r.unit || 'Unmapped';
+    const ctype = r.carrierType || 'Unknown';
+    const key = unit + '||' + ctype;
+    if(!groups[key]) groups[key] = {unit, ctype, trips:0, tats:[]};
+    groups[key].trips++;
+    if(r.tat !== null && !isNaN(r.tat)) groups[key].tats.push(r.tat);
+  });
+  let rows = Object.values(groups).map(g=>({
+    ...g,
+    avgTat: g.tats.length ? g.tats.reduce((a,b)=>a+b,0)/g.tats.length : null,
+    maxTat: g.tats.length ? Math.max(...g.tats) : null
+  }));
+  rows.sort((a,b)=> a.unit.localeCompare(b.unit) || a.ctype.localeCompare(b.ctype));
+
+  const thead = `<thead><tr><th>Unit</th><th>Carrier type</th><th>Trips</th><th>Avg TAT</th><th>Max TAT</th></tr></thead>`;
+  const tbody = '<tbody>' + rows.map(r=>`<tr>
+    <td>${r.unit}</td>
+    <td>${pillHtml(r.ctype === 'Unknown' ? null : r.ctype)}</td>
+    <td>${r.trips}</td>
+    <td>${fmtTat(r.avgTat)}</td>
+    <td>${fmtTat(r.maxTat)}</td>
+  </tr>`).join('') + '</tbody>';
+  document.getElementById('pivotTable').innerHTML = thead + tbody;
+}
+
+function exportToExcel(){
+  const rows = getFilteredTransportRows();
+  const wsData = [['Unit','Carrier Type','Tractor Number','Load ID','Carrier Name','Carrier Name (Full)','Origin','Destination','Customer','Shipped Date/Time','TAT (hrs)']];
+  rows.forEach(r=>{
+    wsData.push([r.unit||'', r.carrierType||'', r.tractor, r.loadId, r.carrierNameShort, r.carrierName, r.origin, r.destination, r.customer, r.shipped ? fmtDate(r.shipped).replace(/<[^>]+>/g,'') : '', r.tat!==null && !isNaN(r.tat) ? Number(r.tat.toFixed(2)) : '']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Transport level');
+
+  const vGroups = {};
+  processedRows.forEach(r=>{
+    const key = r.tractor || '(blank)';
+    if(!vGroups[key]) vGroups[key] = {tractor:key, unit:r.unit, carrierType:r.carrierType, trips:0, tats:[]};
+    vGroups[key].trips++;
+    if(r.tat!==null && !isNaN(r.tat)) vGroups[key].tats.push(r.tat);
+  });
+  const vData = [['Tractor / Vehicle','Unit','Carrier Type','Trips','Avg TAT (hrs)','Max TAT (hrs)']];
+  Object.values(vGroups).forEach(g=>{
+    const avg = g.tats.length ? g.tats.reduce((a,b)=>a+b,0)/g.tats.length : '';
+    const max = g.tats.length ? Math.max(...g.tats) : '';
+    vData.push([g.tractor, g.unit||'', g.carrierType||'', g.trips, avg? Number(avg.toFixed(2)):'', max? Number(max.toFixed(2)):'']);
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(vData);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Vehicle level');
+
+  XLSX.writeFile(wb, 'Transit_TAT_Export.xlsx');
+}
+
+function renderMasterList(){
+  const container = document.getElementById('masterRows');
+  container.innerHTML = '<table style="width:auto;min-width:280px;"><thead><tr><th>Origin location ID</th><th>Unit</th></tr></thead><tbody>' +
+    masterMap.map(row=>`<tr><td>${row[0]}</td><td>${row[1]}</td></tr>`).join('') +
+    '</tbody></table>';
+  document.getElementById('masterCount').textContent = masterMap.length + ' location' + (masterMap.length===1?'':'s');
+}
+renderMasterList();
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', e=>{
+  if(e.target.files[0]) processFile(e.target.files[0]);
+});
+['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev, e=>{
+  e.preventDefault(); dropzone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev, e=>{
+  e.preventDefault(); dropzone.classList.remove('drag');
+}));
+dropzone.addEventListener('drop', e=>{
+  const f = e.dataTransfer.files[0];
+  if(f) processFile(f);
+});
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-'+tab.dataset.view).classList.add('active');
+  });
+});
+
+document.getElementById('searchTransport').addEventListener('input', ()=>{ renderTransportTable(); updateSummary(); });
+document.getElementById('searchVehicle').addEventListener('input', renderVehicleTable);
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+</script>
+</body>
+</html>
