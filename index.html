@@ -385,7 +385,8 @@ function processFile(file){
           tat: tatHours,
           carrierType: carrierType,
           unit: unit,
-          status: status ?? ''
+          status: status ?? '',
+          reasonCode: ''
         });
       });
 
@@ -641,7 +642,8 @@ function renderTransportTable(){
     {key:'destination', label:'Destination'},
     {key:'customer', label:'Customer'},
     {key:'shipped', label:'Shipped'},
-    {key:'tat', label:'TAT'}
+    {key:'tat', label:'TAT'},
+    {key:'reasonCode', label:'Reason Code'}
   ];
   const thead = '<thead><tr>' + cols.map(c=>{
     const arrow = sortState.key===c.key ? (sortState.dir==='asc'?' \u2191':' \u2193') : '';
@@ -658,8 +660,24 @@ function renderTransportTable(){
     <td>${r.customer}</td>
     <td>${fmtDate(r.shipped)}</td>
     <td>${fmtTat(r.tat)}</td>
+    <td>
+      <select class="reason-code-select" data-load-id="${String(r.loadId).replace(/"/g,'&quot;')}" style="min-width:220px;">
+        <option value="">Select reason code</option>
+        <option value="Hold By DB" ${r.reasonCode==='Hold By DB'?'selected':''}>Hold By DB</option>
+        <option value="Onward Dealy | Driver Issue" ${r.reasonCode==='Onward Dealy | Driver Issue'?'selected':''}>Onward Dealy | Driver Issue</option>
+        <option value="Backward Delay| Did not reported after Unloading" ${r.reasonCode==='Backward Delay| Did not reported after Unloading'?'selected':''}>Backward Delay| Did not reported after Unloading</option>
+        <option value="Breakdown" ${r.reasonCode==='Breakdown'?'selected':''}>Breakdown</option>
+        <option value="Hold at Customer Point" ${r.reasonCode==='Hold at Customer Point'?'selected':''}>Hold at Customer Point</option>
+      </select>
+    </td>
   </tr>`).join('') + '</tbody>';
   document.getElementById('transportTable').innerHTML = thead + tbody;
+  document.getElementById('transportTable').querySelectorAll('.reason-code-select').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const row = processedRows.find(r=>String(r.loadId) === String(sel.dataset.loadId));
+      if(row) row.reasonCode = sel.value;
+    });
+  });
   document.getElementById('transportTable').querySelectorAll('th').forEach(th=>{
     th.addEventListener('click', ()=>{
       const key = th.dataset.key;
@@ -732,9 +750,9 @@ function renderPivotTable(){
 
 function exportToExcel(){
   const rows = getFilteredTransportRows();
-  const wsData = [['Unit','Carrier Type','Tractor Number','Load ID','Carrier Name','Carrier Name (Full)','Origin','Destination','Customer','Shipped Date/Time','TAT (hrs)']];
+  const wsData = [['Unit','Carrier Type','Tractor Number','Load ID','Carrier Name','Carrier Name (Full)','Origin','Destination','Customer','Shipped Date/Time','TAT (hrs)','Reason Code']];
   rows.forEach(r=>{
-    wsData.push([r.unit||'', r.carrierType||'', r.tractor, r.loadId, r.carrierNameShort, r.carrierName, r.origin, r.destination, r.customer, r.shipped ? fmtDate(r.shipped).replace(/<[^>]+>/g,'') : '', r.tat!==null && !isNaN(r.tat) ? Number(r.tat.toFixed(2)) : '']);
+    wsData.push([r.unit||'', r.carrierType||'', r.tractor, r.loadId, r.carrierNameShort, r.carrierName, r.origin, r.destination, r.customer, r.shipped ? fmtDate(r.shipped).replace(/<[^>]+>/g,'') : '', r.tat!==null && !isNaN(r.tat) ? Number(r.tat.toFixed(2)) : '', r.reasonCode||'']);
   });
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const wb = XLSX.utils.book_new();
