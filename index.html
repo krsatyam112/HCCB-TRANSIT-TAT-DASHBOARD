@@ -663,11 +663,20 @@ function renderTransportTable(){
     <td>
       <select class="reason-code-select" data-load-id="${String(r.loadId).replace(/"/g,'&quot;')}" style="min-width:220px;">
         <option value="">Select reason code</option>
-        <option value="Hold By DB" ${r.reasonCode==='Hold By DB'?'selected':''}>Hold By DB</option>
-        <option value="Onward Dealy | Driver Issue" ${r.reasonCode==='Onward Dealy | Driver Issue'?'selected':''}>Onward Dealy | Driver Issue</option>
-        <option value="Backward Delay| Did not reported after Unloading" ${r.reasonCode==='Backward Delay| Did not reported after Unloading'?'selected':''}>Backward Delay| Did not reported after Unloading</option>
+        <option value="In Plant" ${r.reasonCode==='In Plant'?'selected':''}>In Plant</option>
+        <option value="Plant On the Way" ${r.reasonCode==='Plant On the Way'?'selected':''}>Plant On the Way</option>
+        <option value="Depot On the Way" ${r.reasonCode==='Depot On the Way'?'selected':''}>Depot On the Way</option>
+        <option value="Distributor On the Way" ${r.reasonCode==='Distributor On the Way'?'selected':''}>Distributor On the Way</option>
+        <option value="Today Reported" ${r.reasonCode==='Today Reported'?'selected':''}>Today Reported</option>
+        <option value="Yesterday Hold – Today Reported" ${r.reasonCode==='Yesterday Hold – Today Reported'?'selected':''}>Yesterday Hold – Today Reported</option>
+        <option value="Last 2 Days Hold – Today Reported" ${r.reasonCode==='Last 2 Days Hold – Today Reported'?'selected':''}>Last 2 Days Hold – Today Reported</option>
+        <option value="Waiting for Unloading – Since Yesterday" ${r.reasonCode==='Waiting for Unloading – Since Yesterday'?'selected':''}>Waiting for Unloading – Since Yesterday</option>
+        <option value="Waiting for Unloading – Last 2 Days" ${r.reasonCode==='Waiting for Unloading – Last 2 Days'?'selected':''}>Waiting for Unloading – Last 2 Days</option>
+        <option value="Waiting for Unloading – Last 3 Days" ${r.reasonCode==='Waiting for Unloading – Last 3 Days'?'selected':''}>Waiting for Unloading – Last 3 Days</option>
         <option value="Breakdown" ${r.reasonCode==='Breakdown'?'selected':''}>Breakdown</option>
-        <option value="Hold at Customer Point" ${r.reasonCode==='Hold at Customer Point'?'selected':''}>Hold at Customer Point</option>
+        <option value="Hold by Distributor" ${r.reasonCode==='Hold by Distributor'?'selected':''}>Hold by Distributor</option>
+        <option value="Not Confirmed" ${r.reasonCode==='Not Confirmed'?'selected':''}>Not Confirmed</option>
+        <option value="Bhiwandi Depot" ${r.reasonCode==='Bhiwandi Depot'?'selected':''}>Bhiwandi Depot</option>
       </select>
     </td>
   </tr>`).join('') + '</tbody>';
